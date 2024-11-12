@@ -1,0 +1,23 @@
+[package]
+name = "mawari"
+version = "0.1.0"
+description = "Mawari Token Management Program"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "mawari"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = { version = "0.29.0", features = ["init-if-needed"] }
+anchor-spl = "0.29.0"
+solana-program = "1.16.1"
+spl-token = { version = "3.5.0", features = ["no-entrypoint"] }
+spl-associated-token-account = { version = "1.1.3", features = ["no-entrypoint"] }
