@@ -2,7 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { Mawari } from "../target/types/mawari";
 
-import {getAccount, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, createMint, createAccount, mintTo, createMintToInstruction, createAssociatedTokenAccountInstruction, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
+import { getAccount, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, createMint, createAccount, mintTo, createMintToInstruction, createAssociatedTokenAccountInstruction, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { assert } from "chai";
 
 describe("Mawari", () => {
@@ -153,6 +153,64 @@ describe("Mawari", () => {
       console.log("User is whitelisted");
     } else {
       console.log("User is not whitelisted");
+    }
+
+  });
+
+  it("Can Remove user", async () => {
+
+    const userToWhitelist = anchor.web3.Keypair.generate();
+
+    // Derive the user account PDA
+    const [userAccount] = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("user"),
+        userToWhitelist.publicKey.toBuffer()
+      ],
+      program.programId
+    );
+
+    const tx = await program.methods
+      .whitelistUser()
+      .accounts({
+        state: mawari,
+        authority: payer.publicKey,  // The admin/authority who can whitelist
+        userAccount: userAccount,    // PDA to store user data
+        user: userToWhitelist.publicKey,  // The user being whitelisted
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([payer])  // Authority needs to sign
+      .rpc();
+
+    // Fetch the user account data
+    const userAccountData = await program.account.userAccount.fetch(userAccount);
+
+    // Assert that the user is whitelisted
+    if (userAccountData.isWhitelisted) {
+      console.log("User is whitelisted");
+    } else {
+      console.log("User is not whitelisted");
+    }
+
+    const tx1 = await program.methods
+      .removeUser()
+      .accounts({
+        state: mawari,
+        authority: payer.publicKey,  // The admin/authority who can remove
+        userAccount: userAccount,    // PDA to store user data
+        user: userToWhitelist.publicKey,  // The user being removed
+      })
+      .signers([payer])  // Authority needs to sign
+      .rpc();
+
+    // Fetch the user account data after removal
+    const userAccountDataAfterRemoval = await program.account.userAccount.fetch(userAccount);
+
+    // Assert that the user is not whitelisted after removal
+    if (!userAccountDataAfterRemoval.isWhitelisted) {
+      console.log("User is not whitelisted after removal");
+    } else {
+      console.log("User is still whitelisted after removal");
     }
 
   });
@@ -342,6 +400,104 @@ describe("Mawari", () => {
     // );
 
     console.log("Withdraw transaction signature:", tx);
+  });
+
+  it("Can validate payment", async () => {
+    // Create a new user and whitelist them
+    const user = anchor.web3.Keypair.generate();
+
+    // Derive the user account PDA
+    const [userAccount] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("user"), user.publicKey.toBuffer()],
+      program.programId
+    );
+
+    // Whitelist the user first
+    await program.methods
+      .whitelistUser()
+      .accounts({
+        state: mawari,
+        authority: payer.publicKey,
+        userAccount: userAccount,
+        user: user.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([payer])
+      .rpc();
+
+    // Fetch the user account data
+    const userAccountData = await program.account.userAccount.fetch(userAccount);
+
+    // Assert that the user is whitelisted
+    if (userAccountData.isWhitelisted) {
+      console.log("User is whitelisted");
+    } else {
+      console.log("User is not whitelisted");
+    }
+
+    // Create token accounts for user
+    const userTokenAccount = await createAccount(
+      provider.connection,
+      payer,
+      mint,
+      user.publicKey
+    );
+
+    // // Mint some tokens to the user
+    const depositAmount = new anchor.BN(1000000);
+    await mintTo(
+      provider.connection,
+      payer,
+      mint,
+      userTokenAccount,
+      payer,
+      depositAmount.toNumber(),
+      [],
+      undefined,
+      TOKEN_PROGRAM_ID
+    );
+
+    // Derive and create the vault token account
+    const vaultTokenAccount = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      payer,
+      mint,
+      mawari,  // The PDA owns the vault
+      true     // Allow ownerOffCurve
+    );
+
+    // Execute deposit
+    const tx = await program.methods
+      .deposit(depositAmount)
+      .accounts({
+        state: mawari,
+        userAccount: userAccount,
+        user: user.publicKey,
+        userTokenAccount: userTokenAccount,
+        vaultTokenAccount: vaultTokenAccount.address,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([user])
+      .rpc();
+
+
+    // Validate the payment
+    const validateId = new anchor.BN(0); // First validation starts at 0
+    const validateAmount = new anchor.BN(500000);
+    const validateTx = await program.methods
+      .validate(validateId, validateAmount)
+      .accounts({
+        state: mawari,
+        fromAccount: userAccount,
+        toAccount: userAccount,
+        from: user.publicKey,
+        to: user.publicKey,
+        authority: payer.publicKey
+      })
+      .signers([payer])
+      .rpc();
+
+    console.log("Validate transaction signature:", validateTx);
   });
 
 
