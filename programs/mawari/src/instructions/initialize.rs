@@ -7,18 +7,17 @@ use crate::state::MawariState;
 pub struct Initialize<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
-    
+
     pub mawari_token_mint: Account<'info, Mint>,
-    
+
     #[account(
         init,
-        payer = authority,
-        space = 8 + 32 + 32 + 8 + 8 + 1,
+        payer = authority,space = 8 + MawariState::LEN,
         seeds = [b"mawari_state"],
         bump
     )]
     pub state: Account<'info, MawariState>,
-    
+
     pub system_program: Program<'info, System>,
 }
 
