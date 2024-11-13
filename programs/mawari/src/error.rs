@@ -12,4 +12,9 @@ pub enum MawariError {
     InvalidValidateId,
     #[msg("Insufficient balance")]
     InsufficientBalance,
+    #[msg("overflow")]
+    Overflow,
+    #[msg("Invalid amount")]
+    InvalidAmount,
+    
 }

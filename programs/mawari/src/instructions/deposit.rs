@@ -39,6 +39,28 @@ pub struct Deposit<'info> {
 }
 
 pub fn handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
+    let user_account = &mut ctx.accounts.user_account;
+
+    require!(amount > 0, MawariError::InvalidAmount);
+
+     // Update state first
+     let state = &mut ctx.accounts.state;
+     state.total_locked_tokens = state.total_locked_tokens
+         .checked_add(amount)
+         .ok_or(MawariError::Overflow)?;
+ 
+     // Update user balance before transfer
+     user_account.balance = user_account.balance
+         .checked_add(amount)
+         .ok_or(MawariError::Overflow)?;
+     
+     // Update timestamps
+     user_account.last_deposit = Clock::get()?.unix_timestamp;
+     user_account.total_deposits = user_account.total_deposits
+         .checked_add(1)
+         .ok_or(MawariError::Overflow)?;
+ 
+
     // Transfer tokens from user to vault
     let transfer_ctx = CpiContext::new(
         ctx.accounts.token_program.to_account_info(),
@@ -50,10 +72,6 @@ pub fn handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
     );
     token::transfer(transfer_ctx, amount)?;
 
-    // Update user balance
-    let user_account = &mut ctx.accounts.user_account;
-    user_account.balance = user_account.balance.checked_add(amount)
-        .ok_or(error!(MawariError::InsufficientBalance))?;
 
     // Emit deposit event
     emit!(DepositAdded {
