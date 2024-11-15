@@ -1,14 +1,28 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { Mawari } from "../target/types/mawari";
+import { Keypair } from "@solana/web3.js"; 
+import { readFileSync } from "fs";  // Ensure we import readFileSync correctly
+
+import {  setAuthority, AuthorityType } from "@solana/spl-token";
 
 import { getAccount, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, createMint, createAccount, mintTo, createMintToInstruction, createAssociatedTokenAccountInstruction, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { assert } from "chai";
 
+
 describe("Mawari", () => {
   // Initialize provider first
-  const provider = anchor.AnchorProvider.env();
-  // Set provider globally
+  // Load the keypair from the specified path
+// Set up the Anchor provider to use this wallet
+const keypairPath = "/Users/jay/.config/solana/my-wallet.json";
+const secretKey = Uint8Array.from(JSON.parse(readFileSync(keypairPath, "utf-8"))); // No conflict here
+const payer = anchor.web3.Keypair.fromSecretKey(secretKey); // This will be the wallet
+
+const provider = new anchor.AnchorProvider(
+  new anchor.web3.Connection("https://api.devnet.solana.com"),
+  new anchor.Wallet(payer),
+  {}
+);  // Set provider globally
   anchor.setProvider(provider);
   // Then initialize program
   const program = anchor.workspace.Mawari as Program<Mawari>;
@@ -16,8 +30,7 @@ describe("Mawari", () => {
   let mint: anchor.web3.PublicKey;
   // const wallet = provider.wallet;
 
-  // Add test accounts and token variables
-  const payer = anchor.web3.Keypair.generate();
+
 
   // const receiver = anchor.web3.Keypair.generate();
   // let payerTokenAccount: anchor.web3.PublicKey;
@@ -65,12 +78,12 @@ describe("Mawari", () => {
   before(async () => {
     [mawari, dataBump] = await createPDA([Buffer.from("mawari_state"),], program.programId);
     console.log("mawari", mawari)
-    // Airdrop SOL to payer
-    const signature = await provider.connection.requestAirdrop(
-      payer.publicKey,
-      2 * anchor.web3.LAMPORTS_PER_SOL
-    );
-    await provider.connection.confirmTransaction(signature);
+    // // Airdrop SOL to payer
+    // const signature = await provider.connection.requestAirdrop(
+    //   payer.publicKey,
+    //   2 * anchor.web3.LAMPORTS_PER_SOL
+    // );
+    // await provider.connection.confirmTransaction(signature);
 
     const authority = payer.publicKey;
 
@@ -145,6 +158,9 @@ describe("Mawari", () => {
       .signers([payer])  // Authority needs to sign
       .rpc();
 
+      console.log("Transaction signature:", tx);
+
+
     // Fetch the user account data
     const userAccountData = await program.account.userAccount.fetch(userAccount);
 
@@ -181,6 +197,9 @@ describe("Mawari", () => {
       })
       .signers([payer])  // Authority needs to sign
       .rpc();
+    
+    console.log("Transaction signature:", tx);
+
 
     // Fetch the user account data
     const userAccountData = await program.account.userAccount.fetch(userAccount);
@@ -239,6 +258,7 @@ describe("Mawari", () => {
       .signers([payer])
       .rpc();
 
+
     // Create token accounts for user
     const userTokenAccount = await createAccount(
       provider.connection,
@@ -283,6 +303,9 @@ describe("Mawari", () => {
       })
       .signers([user])
       .rpc();
+    
+      console.log("Transaction signature:", tx);
+
 
     // Fetch updated user account data
     const userAccountData = await program.account.userAccount.fetch(userAccount);
