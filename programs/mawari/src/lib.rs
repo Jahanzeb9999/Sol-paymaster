@@ -7,7 +7,7 @@ pub mod state;
 use instructions::*;
 use state::*;
 
-declare_id!("74M4RhbRBcY3kf4uxw9gJ38puom5WsbsTsVuHCnMFLbE");
+declare_id!("3oPKtH7xJrwrETRk3xoDdjsKCwKHbtGUTBfcFKYnBEvy");
 
 use instructions::deposit::*;
 use instructions::validate::*;
