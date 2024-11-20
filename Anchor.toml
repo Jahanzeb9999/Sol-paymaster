@@ -5,7 +5,7 @@ seeds = false
 skip-lint = false
 
 [programs.devnet]
-mawari = "ExehckEUpCkewGLwK5uJxS2rfRd5MisGFs2xLLZ2gU5Y"
+mawari = "NANUhLENcWmDaSRNLTPz3w9vNbxxDSLrGPAkZjhEWhS"
 
 [registry]
 url = "https://api.apr.dev"
